@@ -82,8 +82,15 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
-        if request.url.path.startswith("/api/"):
+        path = request.url.path
+        if path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
+        elif path.startswith("/fonts/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # Pages, scripts and styles: always revalidate, so a new release is
+            # never mixed with stale files held by a browser or CDN.
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     @app.get("/api/health")

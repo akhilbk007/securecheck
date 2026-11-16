@@ -115,6 +115,12 @@ def test_api_blocks_internal_targets_and_sets_own_headers():
     assert page.status_code == 200
     assert "frame-ancestors 'none'" in page.headers["content-security-policy"]
     assert page.headers["x-content-type-options"] == "nosniff"
+    assert page.headers["cache-control"] == "no-cache"
+    assert client.get("/app.js").headers["cache-control"] == "no-cache"
+    # every asset the page references is versioned and exists
+    import re
+    for ref in re.findall(r'(?:href|src)="([a-z.]+\.(?:css|js))\?v=\d+"', page.text):
+        assert client.get("/" + ref).status_code == 200, ref
 
 
 def test_api_rate_limit(monkeypatch):

@@ -7,8 +7,8 @@
   <meta name="description" content="Paste a web address and see how well the site protects its visitors: TLS version, certificate, security headers, cookies and email spoofing protection.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=4">
-  <script src="theme.js?v=4"></script>
+  <link rel="stylesheet" href="style.css?v=5">
+  <script src="theme.js?v=5"></script>
 </head>
 <body>
   <header class="top">
@@ -65,6 +65,7 @@
           <dd>SPF and DMARC against email spoofing, DNSSEC, CAA records, MTA-STS and a security.txt contact.</dd>
         </div>
       </dl>
+      <p class="note">Each finding is mapped to the related controls in ISO 27001, SOC 2, PCI DSS and the OWASP Top 10.</p>
       <p class="note">Every check is passive. The scanner sends a handful of ordinary requests, the same ones a browser sends, and never attempts to break in.</p>
     </section>
 
@@ -77,6 +78,7 @@
         <h2 id="report-host"></h2>
         <p id="report-meta" class="meta"></p>
         <ul id="tally" class="tally"></ul>
+        <p id="cert-note" class="cert-note" hidden></p>
         <dl id="facts" class="facts"></dl>
         <div class="actions">
           <button type="button" id="download-pdf" class="solid">Download report (PDF)</button>
@@ -92,6 +94,6 @@
     <p>Scan only sites you own or are curious about as a visitor. Results describe public configuration at the moment of the scan and are not a penetration test.</p>
   </footer>
 
-  <script src="app.js?v=4" defer></script>
+  <script src="app.js?v=5" defer></script>
 </body>
 </html>

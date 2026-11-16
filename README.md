@@ -20,6 +20,19 @@ SecureCheck is a passive website security scanner. It reads only what a site alr
 
 Each finding carries a status, a severity, the raw evidence, a fix and a score penalty. The full report can be downloaded as a PDF or as JSON. The score starts at 100; a failed check costs its full penalty, a warning half. An untrusted certificate caps the score at 45 and missing HTTPS caps it at 30.
 
+## Compliance mapping
+
+Every finding lists the controls it relates to in four frameworks, and the report ends with a per-framework summary showing which controls have gaps.
+
+| Framework | Examples of mapped controls |
+| --- | --- |
+| ISO 27001:2022 (Annex A) | A.8.24 Use of cryptography, A.8.26 Application security requirements, A.8.9 Configuration management, A.5.21 ICT supply chain |
+| SOC 2 (Trust Services Criteria) | CC6.7 Transmission protection, CC6.6 External threats, CC7.1 Vulnerability detection, CC9.2 Vendor risk |
+| PCI DSS v4.0 | 4.2.1 Strong cryptography in transit, 6.2.4 Common attack prevention, 6.4.3 Browser script integrity, 5.4.1 Anti-phishing |
+| OWASP Top 10 (2021) | A02 Cryptographic Failures, A05 Security Misconfiguration, A06 Vulnerable and Outdated Components, A08 Integrity Failures |
+
+The mapping lives in `app/compliance.py`. It is indicative: a passive web scan shows evidence for or against part of a control and is never an audit result on its own.
+
 ## The scanner is the interesting attack surface
 
 A service that fetches URLs on behalf of strangers is a classic Server-Side Request Forgery (SSRF) target. Most of the engineering here went into making the scanner safe to expose publicly.

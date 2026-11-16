@@ -16,8 +16,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table,
-                                TableStyle)
+from reportlab.platypus import (KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer,
+                                Table, TableStyle)
 
 PAGE_W, PAGE_H = A4
 MARGIN = 18 * mm
@@ -201,6 +201,75 @@ def _grid(rows, widths, header: bool = True) -> Table:
     return table
 
 
+def _controls_text(controls: list) -> str:
+    groups: dict[str, list[str]] = {}
+    for c in controls[:20]:
+        groups.setdefault(str(c.get("framework")), []).append(str(c.get("id")))
+    return "; ".join(f"{_t(name, 30)} {_t(', '.join(ids), 60)}" for name, ids in groups.items())
+
+
+def _cert_strip(result: dict):
+    cert = (result.get("tls") or {}).get("certificate") or {}
+    days = cert.get("days_left")
+    if not isinstance(days, int):
+        return None
+    when = cert.get("expires_text") or cert.get("expires")
+    color = RED if days < 14 else AMBER if days < 30 else GREEN
+    if days < 0:
+        text = f"<b>The certificate expired on {_t(when, 40)}.</b>"
+    else:
+        text = (f"<b>Certificate expires on {_t(when, 40)}</b>, in {days} day{'' if days == 1 else 's'}. "
+                f"Issued by {_t(cert.get('issuer') or 'an unknown authority', 80)}.")
+    strip = Table([["", Paragraph(text, BODY)]], colWidths=[1.6 * mm, WIDTH - 1.6 * mm])
+    strip.setStyle(TableStyle([("BACKGROUND", (0, 0), (0, 0), colors.HexColor(color)),
+                               ("BACKGROUND", (1, 0), (1, 0), PANEL),
+                               ("LEFTPADDING", (0, 0), (0, 0), 0), ("RIGHTPADDING", (0, 0), (0, 0), 0),
+                               ("LEFTPADDING", (1, 0), (1, 0), 9),
+                               ("TOPPADDING", (1, 0), (1, 0), 7), ("BOTTOMPADDING", (1, 0), (1, 0), 7)]))
+    return strip
+
+
+CONTROL_WORD = {"fail": ("GAP", RED), "warn": ("PARTIAL", AMBER), "pass": ("NO GAP", GREEN)}
+
+
+def _compliance(result: dict) -> list:
+    frameworks = [fw for fw in (result.get("compliance") or []) if fw.get("controls")]
+    if not frameworks:
+        return []
+    out = [PageBreak(), Paragraph("Compliance mapping", H2), Paragraph(
+        "How the findings in this report relate to common security frameworks. The mapping is "
+        "indicative: a web scan sees only part of what each control covers, so use this to decide "
+        "where to look. It is not an audit result.", SMALL), Spacer(1, 4)]
+    for fw in frameworks:
+        counts = fw.get("counts") or {}
+        parts = []
+        if counts.get("fail"):
+            parts.append(_color(RED, f"{int(counts['fail'])} with gaps"))
+        if counts.get("warn"):
+            parts.append(_color(AMBER, f"{int(counts['warn'])} partial"))
+        if counts.get("pass"):
+            parts.append(_color(GREEN, f"{int(counts['pass'])} with no gap found"))
+        heading = Paragraph(f"<b>{_t(fw.get('framework'), 40)}</b> &nbsp; {', '.join(parts)}",
+                            ParagraphStyle("fw", parent=BODY, fontSize=11, leading=15, spaceBefore=10, spaceAfter=4))
+        rows = [[Paragraph("Control", CELL_HEAD), Paragraph("Result", CELL_HEAD),
+                 Paragraph("Related checks", CELL_HEAD)]]
+        for c in fw["controls"]:
+            word, color = CONTROL_WORD.get(c.get("status"), ("NOTE", GREY))
+            checks = c.get("checks") or []
+            gaps = [k for k in checks if k.get("status") != "pass"]
+            if gaps:
+                related = "; ".join(_t(k.get("title"), 120) for k in gaps[:8])
+            else:
+                related = _color(GREY, f"{len(checks)} related check{'' if len(checks) == 1 else 's'} passed", bold=False)
+            rows.append([Paragraph(f"<b>{_t(c.get('id'), 12)}</b> {_t(c.get('name'), 90)}", CELL),
+                         Paragraph(_color(color, word), CELL), Paragraph(related, CELL)])
+        table = _grid(rows, [62 * mm, 20 * mm, WIDTH - 82 * mm])
+        out.append(KeepTogether([heading, table]) if len(rows) <= 9 else heading)
+        if len(rows) > 9:
+            out.append(table)
+    return out
+
+
 def _card(f: dict) -> Table:
     label, color, tint = STATUS.get(f.get("status"), STATUS["info"])
     severity = _t(f.get("severity"), 10).capitalize()
@@ -226,6 +295,9 @@ def _card(f: dict) -> Table:
     ref = str(f.get("reference") or "")
     if ref.startswith("https://"):
         body += [Spacer(1, 3), Paragraph(f"Further reading: {_t(ref, 200)}", SMALL)]
+    controls = _controls_text(f.get("controls") or [])
+    if controls:
+        body += [Spacer(1, 3), Paragraph(f"<b>Related controls:</b> {controls}", SMALL)]
 
     card = Table([["", body]], colWidths=[1.6 * mm, WIDTH - 1.6 * mm])
     card.setStyle(TableStyle([("BACKGROUND", (0, 0), (0, 0), colors.HexColor(color)),
@@ -247,6 +319,9 @@ def build_pdf(result: dict) -> bytes:
     findings = result.get("findings") or []
     categories = result.get("categories") or []
     story = [Spacer(1, BAND_H - 20 * mm + 8 * mm), _stats(result)]
+    strip = _cert_strip(result)
+    if strip is not None:
+        story += [Spacer(1, 5), strip]
 
     # Summary by area
     rows = [[Paragraph("Area", CELL_HEAD), Paragraph("To fix", CELL_HEAD),
@@ -317,6 +392,8 @@ def build_pdf(result: dict) -> bytes:
             story.append(KeepTogether([heading, table]) if first and len(rows) < 12 else table)
             if first and len(rows) >= 12:
                 story.insert(len(story) - 1, heading)
+
+    story += _compliance(result)
 
     story += [Spacer(1, 14), Paragraph(
         "<b>How the score works.</b> Every site starts at 100. A failed check costs its full penalty and a "

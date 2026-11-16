@@ -9,6 +9,7 @@ from .checks import headers as H
 from .checks.content import analyse_page
 from .checks.dns import check_dns
 from .checks.tls import check_tls
+from .compliance import controls_for, summarise
 from .fetch import FetchError, Response, fetch, fetch_once
 from .models import FAIL, INFO, PASS, WARN, Finding
 from .netguard import Target, TargetError, parse_target, resolve_public
@@ -168,6 +169,12 @@ def scan(raw_url: str) -> dict:
     score = score_findings(findings)
     counts = {s: sum(1 for f in findings if f.status == s) for s in (PASS, WARN, FAIL, INFO)}
 
+    finding_dicts = []
+    for f in findings:
+        d = f.to_dict()
+        d["controls"] = controls_for(f.id)
+        finding_dicts.append(d)
+
     return {
         "host": host,
         "ip": ip,
@@ -181,5 +188,6 @@ def scan(raw_url: str) -> dict:
         "counts": counts,
         "tls": tls_summary,
         "categories": CATEGORY_ORDER,
-        "findings": [f.to_dict() for f in findings],
+        "findings": finding_dicts,
+        "compliance": summarise(finding_dicts),
     }

@@ -78,6 +78,11 @@ def test_full_scan_against_local_server(tls_server, monkeypatch):
     assert by_id["sri"]["status"] == "warn"
     assert by_id["mixed-content"]["status"] == "warn"
     assert by_id["coop"]["status"] == "warn"
+    assert {c["id"] for c in by_id["hsts"]["controls"]} >= {"A.8.24", "CC6.7", "4.2.1"}
+    frameworks = {fw["framework"]: fw for fw in report["compliance"]}
+    assert set(frameworks) == {"ISO 27001:2022", "SOC 2", "PCI DSS v4.0", "OWASP Top 10 (2021)"}
+    assert frameworks["OWASP Top 10 (2021)"]["counts"]["fail"] >= 1
+    assert report["tls"]["certificate"]["expires_text"]
     assert report["score"] <= 45 and report["grade"] in ("D", "F")
 
 

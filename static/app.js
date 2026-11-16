@@ -138,6 +138,19 @@
       fact(facts, "Key", tls.certificate.key);
     }
 
+    var note = document.getElementById("cert-note");
+    if (tls.certificate && typeof tls.certificate.days_left === "number") {
+      var days = tls.certificate.days_left;
+      var when = tls.certificate.expires_text || tls.certificate.expires;
+      note.textContent = days < 0
+        ? "Certificate expired on " + when + "."
+        : "Certificate expires on " + when + ", in " + days + (days === 1 ? " day." : " days.");
+      note.className = "cert-note " + (days < 14 ? "fail" : days < 30 ? "warn" : "pass");
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
+
     ledger.replaceChildren();
     data.categories.forEach(function (category) {
       var items = data.findings.filter(function (f) { return f.category === category; });
@@ -148,7 +161,60 @@
       items.forEach(function (f) { ledger.appendChild(renderFinding(f)); });
     });
 
+    renderCompliance(data.compliance || []);
+
     report.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  var CONTROL_WORD = { fail: "Gap", warn: "Partial", pass: "No gap" };
+
+  function renderCompliance(frameworks) {
+    if (!frameworks.length) return;
+    ledger.appendChild(el("h3", null, "Compliance mapping"));
+    ledger.appendChild(el("p", "ledger-note",
+      "How these findings relate to common frameworks. A web scan covers only part of each control, " +
+      "so this shows where to look and is not an audit result."));
+    frameworks.forEach(function (fw) {
+      if (!fw.controls.length) return;
+      var box = el("details", "framework");
+      var summary = el("summary");
+      summary.appendChild(el("span", "fw-name", fw.framework));
+      var parts = [];
+      if (fw.counts.fail) parts.push(fw.counts.fail + " with gaps");
+      if (fw.counts.warn) parts.push(fw.counts.warn + " partial");
+      if (fw.counts.pass) parts.push(fw.counts.pass + " with no gap found");
+      summary.appendChild(el("span", "fw-counts", parts.join(", ")));
+      box.appendChild(summary);
+      fw.controls.forEach(function (c) {
+        var row = el("div", "ctl-row");
+        row.appendChild(el("span", "mark " + c.status, CONTROL_WORD[c.status] || c.status));
+        var text = el("div");
+        text.appendChild(el("p", "ctl-name", c.id + "  " + c.name));
+        var gaps = c.checks.filter(function (k) { return k.status !== "pass"; })
+          .map(function (k) { return k.title; });
+        text.appendChild(el("p", "ctl-checks", gaps.length
+          ? "Needs attention: " + gaps.join("; ")
+          : c.checks.length + (c.checks.length === 1 ? " related check passed" : " related checks passed")));
+        row.appendChild(text);
+        box.appendChild(row);
+      });
+      ledger.appendChild(box);
+    });
+  }
+
+  function controlsLine(controls) {
+    var groups = {};
+    var order = [];
+    controls.forEach(function (c) {
+      if (!groups[c.framework]) { groups[c.framework] = []; order.push(c.framework); }
+      groups[c.framework].push(c.id);
+    });
+    var p = el("p", "controls");
+    p.appendChild(el("span", "controls-label", "Related controls"));
+    order.forEach(function (name) {
+      p.appendChild(el("span", "ctl", name + ": " + groups[name].join(", ")));
+    });
+    return p;
   }
 
   function renderFinding(f) {
@@ -166,6 +232,7 @@
     if (f.fix && (f.status === "fail" || f.status === "warn")) {
       body.appendChild(el("p", "fix", "Fix: " + f.fix));
     }
+    if (f.controls && f.controls.length) body.appendChild(controlsLine(f.controls));
     if (f.reference && /^https:\/\//.test(f.reference)) {
       var p = el("p");
       var a = el("a", null, "Read more");

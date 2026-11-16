@@ -93,3 +93,29 @@ def test_pdf_report_survives_hostile_values():
     }
     pdf = build_pdf(result)
     assert pdf.startswith(b"%PDF") and len(pdf) > 2000
+
+
+def test_compliance_mapping_is_consistent():
+    from app.compliance import FRAMEWORKS, MAPPING, controls_for, summarise
+
+    # every mapped control exists in its framework
+    for finding_id, frameworks in MAPPING.items():
+        for framework, ids in frameworks.items():
+            for cid in ids:
+                assert cid in FRAMEWORKS[framework], (finding_id, framework, cid)
+    assert {c["id"] for c in controls_for("tls-legacy")} >= {"A.8.24", "CC6.7", "4.2.1", "A02"}
+    assert controls_for("no-such-check") == []
+
+    findings = [
+        {"id": "hsts", "title": "HSTS", "status": "fail"},
+        {"id": "tls-13", "title": "TLS 1.3", "status": "pass"},
+        {"id": "dmarc", "title": "DMARC", "status": "warn"},
+        {"id": "cookies", "title": "Cookies", "status": "info"},
+    ]
+    summary = {fw["framework"]: fw for fw in summarise(findings)}
+    iso = {c["id"]: c for c in summary["ISO 27001:2022"]["controls"]}
+    assert iso["A.8.24"]["status"] == "fail"          # worst result wins
+    assert iso["A.5.14"]["status"] == "warn"
+    assert iso["A.8.24"]["checks"][0]["status"] == "fail"
+    pci = {c["id"]: c["status"] for c in summary["PCI DSS v4.0"]["controls"]}
+    assert pci == {"4.2.1": "fail", "5.4.1": "warn"}

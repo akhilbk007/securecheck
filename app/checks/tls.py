@@ -243,20 +243,32 @@ def _certificate_findings(der: bytes, summary: dict) -> list[Finding]:
         "key": key_desc, "signature": sig_hash,
     }
 
+    summary["certificate"]["expires_text"] = f"{not_after.day} {not_after.strftime('%B %Y')}"
+    title = "Certificate is not about to expire"
+    when = f"{not_after.day} {not_after.strftime('%B %Y')}"
     if days_left < 0:
         pass  # already reported by the trust check
     elif days_left < 14:
         out.append(Finding(
-            "cert-expiry", CAT, "Certificate is not about to expire", WARN,
-            f"The certificate expires in {days_left} days ({not_after.date().isoformat()}).",
+            "cert-expiry", CAT, title, WARN,
+            f"The certificate expires on {when}, in {days_left} days. Once it does, every visitor "
+            "gets a full-page browser warning.",
             penalty=10, severity="medium",
             fix="Renew now and automate renewal (certbot, ACME, or a managed certificate).",
         ))
+    elif days_left < 30:
+        out.append(Finding(
+            "cert-expiry", CAT, title, WARN,
+            f"The certificate expires on {when}, in {days_left} days. Automated renewal normally "
+            "happens with 30 days to spare, so check that it is working.",
+            penalty=4, severity="low",
+            fix="Confirm that automatic renewal is set up and has not been failing.",
+        ))
     else:
         out.append(Finding(
-            "cert-expiry", CAT, "Certificate is not about to expire", PASS,
-            f"Issued by {issuer or 'an unknown authority'}; valid for another {days_left} days "
-            f"(until {not_after.date().isoformat()}).",
+            "cert-expiry", CAT, title, PASS,
+            f"The certificate expires on {when}, in {days_left} days. "
+            f"Issued by {issuer or 'an unknown authority'}.",
         ))
 
     if weak_key or sig_hash in ("sha1", "md5"):

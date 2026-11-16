@@ -235,6 +235,35 @@ main { padding: 0 clamp(1.25rem, 5vw, 4rem); max-width: 84rem; }
   overflow-wrap: anywhere; white-space: pre-wrap;
 }
 
+.cert-note {
+  margin: 1.25rem 0 0; padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--pass); background: var(--surface);
+  font-size: 0.9375rem; font-weight: 500;
+}
+.cert-note.warn { border-left-color: var(--warn); }
+.cert-note.fail { border-left-color: var(--fail); }
+.cert-note[hidden] { display: none; }
+
+.f-body .controls { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: baseline; font-size: 0.8125rem; color: var(--ink-soft); }
+.controls-label { font-weight: 700; margin-right: 0.25rem; }
+.ctl { border: 1px solid var(--rule); border-radius: 4px; padding: 0.05rem 0.4rem; white-space: nowrap; }
+
+.ledger-note { margin: 0 0 1rem; max-width: var(--measure); color: var(--ink-soft); font-size: 0.9375rem; }
+.framework { border-bottom: 1px solid var(--rule); }
+.framework summary {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1.5rem;
+  padding: 0.8rem 0; cursor: pointer; list-style: none;
+}
+.framework summary::-webkit-details-marker { display: none; }
+.fw-name { font-weight: 700; }
+.fw-name::before { content: "+"; display: inline-block; width: 1.25rem; color: var(--ink-soft); }
+.framework[open] .fw-name::before { content: "\2212"; }
+.fw-counts { color: var(--ink-soft); font-size: 0.9375rem; }
+.ctl-row { display: grid; grid-template-columns: 4.25rem 1fr; gap: 1rem; padding: 0.55rem 0 0.55rem 1.25rem; border-top: 1px solid var(--rule); }
+.ctl-row p { margin: 0; }
+.ctl-name { font-weight: 500; }
+.ctl-checks { color: var(--ink-soft); font-size: 0.875rem; }
+
 .foot { padding: 2rem clamp(1.25rem, 5vw, 4rem) 3rem; color: var(--ink-soft); font-size: 0.9375rem; }
 .foot p { max-width: var(--measure); margin: 0; }
 

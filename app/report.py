@@ -269,7 +269,7 @@ def build_pdf(result: dict) -> bytes:
     # Priorities
     urgent = sorted((f for f in findings if f.get("status") == "fail"), key=lambda f: -int(f.get("penalty", 0)))
     if urgent:
-        rows = [[Paragraph("", CELL_HEAD), Paragraph("Issue", CELL_HEAD),
+        rows = [[Paragraph("", CELL_HEAD), Paragraph("Check that failed", CELL_HEAD),
                  Paragraph("Severity", CELL_HEAD), Paragraph("Area", CELL_HEAD)]]
         for i, f in enumerate(urgent, 1):
             rows.append([Paragraph(str(i), CELL), Paragraph(f"<b>{_t(f.get('title'), 160)}</b>", CELL),

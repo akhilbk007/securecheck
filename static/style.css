@@ -65,10 +65,20 @@ a:hover { text-decoration-thickness: 2px; }
 /* Header */
 .top {
   display: flex; flex-wrap: wrap; gap: 0.5rem 2rem;
-  justify-content: space-between; align-items: baseline;
+  justify-content: space-between; align-items: center;
   padding: 1.25rem clamp(1.25rem, 5vw, 4rem);
 }
-.wordmark { font-weight: 800; font-size: 1.25rem; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; }
+.wordmark {
+  display: inline-flex; align-items: center; gap: 0.625rem;
+  font-size: 1.5rem; letter-spacing: -0.03em; color: var(--ink); text-decoration: none;
+}
+.wordmark-text { font-weight: 800; }
+.wordmark-light { font-weight: 400; }
+.mark { width: 2.125rem; height: 2.125rem; transform: rotate(-8deg); flex: none; }
+.mark-disc { fill: var(--ink); }
+.mark-ring { fill: none; stroke: var(--on-ink); stroke-width: 1.2; opacity: 0.55; }
+.mark-tick { fill: none; stroke: var(--on-ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.wordmark:hover .mark-disc { fill: var(--action); }
 .top nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; font-size: 0.9375rem; }
 .top nav { align-items: center; }
 .top nav a { color: var(--ink-soft); }

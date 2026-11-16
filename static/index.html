@@ -7,15 +7,22 @@
   <meta name="description" content="Paste a web address and see how well the site protects its visitors: TLS version, certificate, security headers, cookies and email spoofing protection.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=3">
-  <script src="theme.js?v=3"></script>
+  <link rel="stylesheet" href="style.css?v=4">
+  <script src="theme.js?v=4"></script>
 </head>
 <body>
   <header class="top">
-    <a class="wordmark" href="./">SecureCheck</a>
+    <a class="wordmark" href="./" aria-label="SecureCheck, home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <circle class="mark-disc" cx="16" cy="16" r="15"/>
+        <circle class="mark-ring" cx="16" cy="16" r="11.5"/>
+        <path class="mark-tick" d="M10.5 16.6l3.8 3.8 7.4-8.6"/>
+      </svg>
+      <span class="wordmark-text">Secure<span class="wordmark-light">Check</span></span>
+    </a>
     <nav>
       <a href="https://github.com/akhilbk007/securecheck" id="source-link">Source on GitHub</a>
-      <a href="https://akhilkulal.in">Built by Akhil Kulal</a>
+      <a href="https://akhilkulal.in">Visit akhilkulal.in</a>
       <button type="button" id="theme-toggle" class="theme-toggle">Dark mode</button>
     </nav>
   </header>
@@ -85,6 +92,6 @@
     <p>Scan only sites you own or are curious about as a visitor. Results describe public configuration at the moment of the scan and are not a penetration test.</p>
   </footer>
 
-  <script src="app.js?v=3" defer></script>
+  <script src="app.js?v=4" defer></script>
 </body>
 </html>

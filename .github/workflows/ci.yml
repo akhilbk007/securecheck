@@ -14,3 +14,20 @@ jobs:
           python-version: "3.13"
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+
+  # Deploys to Render only when the tests pass on main.
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "The RENDER_DEPLOY_HOOK secret is not set in the repository settings."
+            exit 1
+          fi
+          curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK" > /dev/null
+          echo "Deploy triggered."

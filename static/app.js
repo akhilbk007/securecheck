@@ -199,15 +199,15 @@
     var btn = event.currentTarget;
     var done = function (text) {
       btn.textContent = text;
-      setTimeout(function () { btn.textContent = "Copy link to this report"; }, 1800);
+      setTimeout(function () { btn.textContent = "Copy link"; }, 1800);
     };
     if (navigator.clipboard) {
       navigator.clipboard.writeText(location.href).then(
         function () { done("Link copied"); },
-        function () { done("Copy the address bar instead"); }
+        function () { done("Copy from address bar"); }
       );
     } else {
-      done("Copy the address bar instead");
+      done("Copy from address bar");
     }
   });
 
@@ -257,6 +257,20 @@
     a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
+
+  // Theme toggle. theme.js has already applied the saved or system theme.
+  var themeToggle = document.getElementById("theme-toggle");
+  function paintThemeToggle() {
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    themeToggle.textContent = dark ? "Light mode" : "Dark mode";
+  }
+  themeToggle.addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("securecheck-theme", next); } catch (e) { /* storage unavailable */ }
+    paintThemeToggle();
+  });
+  paintThemeToggle();
 
   // Shareable links: /?url=example.com runs the scan on load.
   var preset = new URLSearchParams(location.search).get("url");

@@ -211,6 +211,41 @@
     }
   });
 
+  document.getElementById("download-pdf").addEventListener("click", function (event) {
+    if (!lastResult) return;
+    var btn = event.currentTarget;
+    var host = lastResult.host;
+    btn.disabled = true;
+    btn.textContent = "Preparing report";
+    fetch("api/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: host })
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            throw new Error(data.error || "The report could not be created. Try again.");
+          });
+        }
+        return res.blob();
+      })
+      .then(function (blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "securecheck-" + host + ".pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      })
+      .catch(function (err) { setStatus(err.message, true); })
+      .then(function () {
+        btn.disabled = false;
+        btn.textContent = "Download report (PDF)";
+      });
+  });
+
   document.getElementById("download-json").addEventListener("click", function () {
     if (!lastResult) return;
     var blob = new Blob([JSON.stringify(lastResult, null, 2)], { type: "application/json" });

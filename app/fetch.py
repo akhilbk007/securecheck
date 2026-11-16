@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 from .netguard import Target, TargetError, parse_target, resolve_public
 
 TIMEOUT = 8.0
-MAX_BODY = 64 * 1024
+MAX_BODY = 512 * 1024
 MAX_REDIRECTS = 5
 USER_AGENT = "SecureCheck/1.0 (passive security header check)"
 

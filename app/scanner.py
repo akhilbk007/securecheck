@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from .checks import headers as H
+from .checks.content import analyse_page
 from .checks.dns import check_dns
 from .checks.tls import check_tls
 from .fetch import FetchError, Response, fetch, fetch_once
@@ -13,7 +14,7 @@ from .models import FAIL, INFO, PASS, WARN, Finding
 from .netguard import Target, TargetError, parse_target, resolve_public
 
 PROBE_ORIGIN = "https://cors-probe.securecheck.invalid"
-CATEGORY_ORDER = ["Encryption", "Browser protections", "Cookies", "Domain and email"]
+CATEGORY_ORDER = ["Encryption", "Browser protections", "Cookies", "Page content", "Domain and email"]
 GRADES = [(95, "A+"), (85, "A"), (70, "B"), (55, "C"), (40, "D"), (0, "F")]
 
 
@@ -86,21 +87,30 @@ def _security_txt_finding(host: str, port: int) -> Finding:
 
 
 def _header_findings(resp: Response) -> list[Finding]:
-    csp = resp.header("Content-Security-Policy")
+    content, meta_csp = analyse_page(resp.body, resp.url, resp.header("Content-Type"))
+    header_csp = resp.header("Content-Security-Policy")
+    csp = header_csp or meta_csp
     out = [
         H.check_hsts(resp.header("Strict-Transport-Security")),
-        H.check_csp(csp, resp.header("Content-Security-Policy-Report-Only")),
-        H.check_framing(resp.header("X-Frame-Options"), csp),
+        H.check_csp(csp, resp.header("Content-Security-Policy-Report-Only"),
+                    from_meta=bool(meta_csp and not header_csp)),
+        # frame-ancestors is ignored in a <meta> policy, so only the header counts here
+        H.check_framing(resp.header("X-Frame-Options"), header_csp),
         H.check_nosniff(resp.header("X-Content-Type-Options")),
         H.check_referrer(resp.header("Referrer-Policy")),
         H.check_permissions(resp.header("Permissions-Policy")),
+        H.check_coop(resp.header("Cross-Origin-Opener-Policy")),
         H.check_disclosure(resp.header("Server"), resp.header("X-Powered-By")),
     ]
+    deprecated = H.check_deprecated(resp.header("X-XSS-Protection"))
+    if deprecated:
+        out.append(deprecated)
     cors = H.check_cors(resp.header("Access-Control-Allow-Origin"),
                         resp.header("Access-Control-Allow-Credentials"), PROBE_ORIGIN)
     if cors:
         out.append(cors)
     out.extend(H.check_cookies(resp.header_all("Set-Cookie")))
+    out.extend(content)
     return out
 
 

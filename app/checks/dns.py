@@ -139,4 +139,56 @@ def check_dns(host: str) -> list[Finding]:
             penalty=2, severity="low",
             fix='Publish a CAA record naming your authority, for example: 0 issue "letsencrypt.org"',
         ))
+
+    # DNSSEC: a DS record at the parent zone means the domain's answers are signed.
+    signed, failed = False, False
+    for name in candidates:
+        try:
+            resolver.resolve(name, "DS")
+            signed = True
+            break
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            continue
+        except (dns.exception.DNSException, OSError):
+            failed = True
+            break
+    title = "DNS answers are signed (DNSSEC)"
+    if failed:
+        findings.append(Finding("dnssec", CAT, title, INFO, "DNS could not be queried for this check."))
+    elif signed:
+        findings.append(Finding("dnssec", CAT, title, PASS,
+                                "The domain is signed with DNSSEC, so forged DNS answers can be detected."))
+    else:
+        findings.append(Finding(
+            "dnssec", CAT, title, WARN,
+            "The domain is not signed with DNSSEC, so a forged DNS answer could send visitors to "
+            "another server without detection.",
+            penalty=2, severity="low",
+            fix="Enable DNSSEC at your DNS provider and add the DS record at your registrar.",
+        ))
+
+    # MTA-STS only matters for domains that receive email.
+    mail_domain = spf_domain if spf_domain == dmarc_domain else candidates[-1]
+    try:
+        has_mx = any(str(r.exchange) != "." for r in resolver.resolve(mail_domain, "MX"))
+    except (dns.exception.DNSException, OSError):
+        has_mx = False
+    if has_mx:
+        records = _txt(resolver, "_mta-sts." + mail_domain)
+        title = "Incoming email must be encrypted (MTA-STS)"
+        if records is None:
+            pass
+        elif any(r.lower().startswith("v=stsv1") for r in records):
+            findings.append(Finding("mta-sts", CAT, title, PASS,
+                                    "An MTA-STS policy tells sending servers to require TLS."))
+        else:
+            findings.append(Finding(
+                "mta-sts", CAT, title, WARN,
+                "No MTA-STS policy. An attacker on the network path can strip encryption from email "
+                "being delivered to this domain.",
+                penalty=2, severity="low",
+                fix=f"Publish a TXT record at _mta-sts.{mail_domain} and a policy file at "
+                    f"https://mta-sts.{mail_domain}/.well-known/mta-sts.txt",
+                reference="https://datatracker.ietf.org/doc/html/rfc8461",
+            ))
     return findings

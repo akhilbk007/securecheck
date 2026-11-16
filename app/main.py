@@ -9,11 +9,12 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .netguard import TargetError
+from .report import build_pdf
 from .scanner import scan
 
 log = logging.getLogger("securecheck")
@@ -89,29 +90,29 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok"}
 
-    @app.post("/api/scan")
-    def run_scan(body: ScanRequest, request: Request):
+    def get_result(url: str, request: Request):
+        """Shared by the scan and report endpoints. Returns (result, error_response)."""
         client = request.client.host if request.client else "unknown"
         if not per_ip.allow(client) or not everyone.allow("*"):
-            return JSONResponse({"error": "Too many scans. Wait a minute and try again."}, 429,
-                                headers={"Retry-After": "60"})
+            return None, JSONResponse({"error": "Too many scans. Wait a minute and try again."}, 429,
+                                      headers={"Retry-After": "60"})
 
-        key = body.url.strip().lower()
+        key = url.strip().lower()
         with cache_lock:
             hit = cache.get(key)
             if hit and time.monotonic() - hit[0] < CACHE_SECONDS:
-                return {**hit[1], "cached": True}
+                return {**hit[1], "cached": True}, None
 
         if not slots.acquire(timeout=5):
-            return JSONResponse({"error": "The scanner is busy. Try again in a moment."}, 503)
+            return None, JSONResponse({"error": "The scanner is busy. Try again in a moment."}, 503)
         try:
-            result = scan(body.url)
+            result = scan(url)
         except TargetError as exc:
-            return JSONResponse({"error": str(exc)}, 400)
+            return None, JSONResponse({"error": str(exc)}, 400)
         except Exception:
             # Never return internal error text to the caller.
             log.exception("scan failed")
-            return JSONResponse({"error": "The scan failed unexpectedly. Try again."}, 500)
+            return None, JSONResponse({"error": "The scan failed unexpectedly. Try again."}, 500)
         finally:
             slots.release()
 
@@ -119,7 +120,33 @@ def create_app() -> FastAPI:
             if len(cache) > 500:
                 cache.clear()
             cache[key] = (time.monotonic(), result)
-        return {**result, "cached": False}
+            cache["pdf:" + result["host"]] = (time.monotonic(), result)  # lets the report reuse this scan
+        return {**result, "cached": False}, None
+
+    @app.post("/api/scan")
+    def run_scan(body: ScanRequest, request: Request):
+        result, error = get_result(body.url, request)
+        return error if error is not None else result
+
+    @app.post("/api/report")
+    def run_report(body: ScanRequest, request: Request):
+        """PDF report. Built from the server's own scan result, never from client-supplied data."""
+        with cache_lock:
+            hit = cache.get("pdf:" + body.url.strip().lower())
+        if hit and time.monotonic() - hit[0] < CACHE_SECONDS:
+            result, error = hit[1], None
+        else:
+            result, error = get_result(body.url, request)
+        if error is not None:
+            return error
+        try:
+            pdf = build_pdf(result)
+        except Exception:
+            log.exception("report failed")
+            return JSONResponse({"error": "The report could not be created. Try again."}, 500)
+        name = "".join(c if c.isalnum() or c in ".-" else "-" for c in result["host"])[:80]
+        return Response(pdf, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="securecheck-{name}.pdf"'})
 
     @app.get("/")
     def index():

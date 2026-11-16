@@ -159,6 +159,13 @@ main { padding: 0 clamp(1.25rem, 5vw, 4rem); max-width: 84rem; }
   background: transparent; border: 1.5px solid var(--ink); border-radius: 999px;
   padding: 0.375rem 0.875rem; cursor: pointer;
 }
+.solid {
+  font: inherit; font-size: 0.9375rem; font-weight: 600; color: #fff;
+  background: var(--ink); border: 1.5px solid var(--ink); border-radius: 999px;
+  padding: 0.375rem 0.875rem; cursor: pointer;
+}
+.solid:hover { background: var(--action); border-color: var(--action); }
+.solid[disabled] { background: var(--ink-soft); border-color: var(--ink-soft); cursor: progress; }
 .quiet:hover { background: var(--ink); color: #fff; }
 
 /* Findings ledger */

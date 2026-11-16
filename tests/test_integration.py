@@ -24,7 +24,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Access-Control-Allow-Credentials", "true")
         self.end_headers()
-        self.wfile.write(b"<h1>hello</h1>")
+        self.wfile.write(b'<h1>hello</h1><script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>'
+                         b'<img src="http://localhost/logo.png">')
 
     def log_message(self, *args):
         pass
@@ -73,7 +74,33 @@ def test_full_scan_against_local_server(tls_server, monkeypatch):
     assert by_id["disclosure"]["status"] == "warn"
     assert by_id["cors"]["status"] == "fail"              # reflected origin + credentials
     assert by_id["cookie-secure"]["status"] == "fail"
+    assert by_id["js-libraries"]["status"] == "fail"      # jQuery 1.12.4
+    assert by_id["sri"]["status"] == "warn"
+    assert by_id["mixed-content"]["status"] == "warn"
+    assert by_id["coop"]["status"] == "warn"
     assert report["score"] <= 45 and report["grade"] in ("D", "F")
+
+
+def test_pdf_report_endpoint(tls_server, monkeypatch):
+    monkeypatch.setenv("SECURECHECK_ALLOW_PRIVATE", "1")
+    monkeypatch.setattr("app.scanner.check_dns", lambda host: [])
+    from app.main import create_app
+    client = TestClient(create_app())
+
+    url = f"https://localhost:{tls_server}/"
+    assert client.post("/api/scan", json={"url": url}).status_code == 200
+    res = client.post("/api/report", json={"url": url})
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert "attachment" in res.headers["content-disposition"]
+    assert res.content.startswith(b"%PDF")
+
+
+def test_report_endpoint_refuses_blocked_targets():
+    from app.main import create_app
+    client = TestClient(create_app())
+    for url in ["http://169.254.169.254/", "http://localhost/", "file:///etc/passwd"]:
+        assert client.post("/api/report", json={"url": url}).status_code == 400, url
 
 
 def test_api_blocks_internal_targets_and_sets_own_headers():

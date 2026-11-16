@@ -59,7 +59,7 @@ def parse_csp(value: str) -> dict[str, list[str]]:
     return policy
 
 
-def check_csp(value: str | None, report_only: str | None = None) -> Finding:
+def check_csp(value: str | None, report_only: str | None = None, from_meta: bool = False) -> Finding:
     title = "Content Security Policy limits injected scripts"
     if not value:
         detail = ("No Content-Security-Policy header. If an attacker manages to inject script "
@@ -95,8 +95,10 @@ def check_csp(value: str | None, report_only: str | None = None) -> Finding:
             fix="Replace 'unsafe-inline' with nonces or hashes, and list script origins explicitly.",
             evidence=value, reference="https://csp-evaluator.withgoogle.com/",
         )
+    where = " It is set by a <meta> tag in the page." if from_meta else ""
     return Finding("csp", CAT, title, PASS,
-                   "A policy is present and restricts where scripts can come from.", evidence=value)
+                   "A policy is present and restricts where scripts can come from." + where,
+                   evidence=value)
 
 
 def check_framing(xfo: str | None, csp: str | None) -> Finding:
@@ -171,6 +173,36 @@ def check_permissions(value: str | None) -> Finding:
         "browser features.",
         penalty=4, severity="low",
         fix="Send: Permissions-Policy: camera=(), microphone=(), geolocation=()", reference=OWASP,
+    )
+
+
+def check_coop(value: str | None) -> Finding:
+    title = "Windows opened from other sites are isolated (COOP)"
+    if value and value.strip().lower().split(";")[0] in ("same-origin", "same-origin-allow-popups"):
+        return Finding("coop", CAT, title, PASS,
+                       "Cross-Origin-Opener-Policy keeps other sites from holding a reference to this page.",
+                       evidence=value)
+    return Finding(
+        "coop", CAT, title, WARN,
+        "No Cross-Origin-Opener-Policy header. A page that opens this site in a new window keeps a "
+        "handle to it, which enables some cross-site leaks.",
+        penalty=2, severity="low",
+        fix="Send: Cross-Origin-Opener-Policy: same-origin", evidence=value or "",
+        reference="https://developer.mozilla.org/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy",
+    )
+
+
+def check_deprecated(xss_protection: str | None) -> Finding | None:
+    """X-XSS-Protection: 1 switches on a browser filter that was itself exploitable."""
+    if not xss_protection or xss_protection.strip().startswith("0"):
+        return None
+    return Finding(
+        "deprecated-headers", CAT, "No obsolete security headers are sent", WARN,
+        "X-XSS-Protection enables a legacy browser filter that modern browsers removed because it "
+        "could be abused to create vulnerabilities.",
+        penalty=2, severity="low",
+        fix="Remove the header, or send X-XSS-Protection: 0, and rely on Content Security Policy.",
+        evidence=f"X-XSS-Protection: {xss_protection}",
     )
 
 

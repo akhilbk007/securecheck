@@ -37,7 +37,7 @@
       <dl>
         <div>
           <dt>Encryption</dt>
-          <dd>TLS versions offered, certificate trust, expiry and key strength, and whether plain HTTP redirects to HTTPS.</dd>
+          <dd>TLS versions offered, forward secrecy, certificate trust, expiry and key strength, and whether plain HTTP redirects to HTTPS.</dd>
         </div>
         <div>
           <dt>Browser protections</dt>
@@ -48,8 +48,12 @@
           <dd>Secure, HttpOnly and SameSite on every cookie the page sets.</dd>
         </div>
         <div>
+          <dt>Page content</dt>
+          <dd>Third-party scripts without integrity hashes, mixed content, and outdated jQuery, Bootstrap or AngularJS.</dd>
+        </div>
+        <div>
           <dt>Domain and email</dt>
-          <dd>SPF and DMARC against email spoofing, CAA records, and a security.txt contact.</dd>
+          <dd>SPF and DMARC against email spoofing, DNSSEC, CAA records, MTA-STS and a security.txt contact.</dd>
         </div>
       </dl>
       <p class="note">Every check is passive. The scanner sends a handful of ordinary requests, the same ones a browser sends, and never attempts to break in.</p>
@@ -66,6 +70,7 @@
         <ul id="tally" class="tally"></ul>
         <dl id="facts" class="facts"></dl>
         <div class="actions">
+          <button type="button" id="download-pdf" class="solid">Download report (PDF)</button>
           <button type="button" id="copy-link" class="quiet">Copy link to this report</button>
           <button type="button" id="download-json" class="quiet">Download JSON</button>
         </div>

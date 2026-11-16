@@ -54,6 +54,24 @@ def _probe(ip: str, port: int, host: str, version: ssl.TLSVersion) -> bool | Non
         return False
 
 
+def _accepts_static_rsa(ip: str, port: int, host: str) -> bool | None:
+    """Does the server still accept RSA key exchange (no forward secrecy) on TLS 1.2?"""
+    try:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.minimum_version = ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+        ctx.set_ciphers("kRSA")
+    except (ssl.SSLError, ValueError):
+        return None
+    try:
+        with socket.create_connection((ip, port), TIMEOUT) as sock:
+            with ctx.wrap_socket(sock, server_hostname=host):
+                return True
+    except (ssl.SSLError, OSError):
+        return False
+
+
 def _handshake(ip: str, port: int, host: str, verify: bool):
     ctx = ssl.create_default_context()
     if not verify:
@@ -179,16 +197,21 @@ def check_tls(host: str, ip: str, port: int = 443) -> tuple[list[Finding], dict]
             fix="Enable TLS 1.3 on the web server or CDN.",
         ))
 
-    name = cipher[0] if cipher else ""
-    forward_secret = version == "TLSv1.3" or "ECDHE" in name or "DHE" in name
-    if not forward_secret:
+    title = "Only forward-secret ciphers are accepted"
+    static_rsa = _accepts_static_rsa(ip, port, host) if supported["TLS 1.2"] else False
+    if static_rsa:
         findings.append(Finding(
-            "tls-fs", CAT, "Forward secrecy", WARN,
-            "The negotiated cipher does not provide forward secrecy, so recorded traffic could be "
-            "decrypted later if the server key leaks.",
-            penalty=8, severity="medium",
-            fix="Prefer ECDHE cipher suites and disable static RSA key exchange.",
-            evidence=name,
+            "tls-fs", CAT, title, WARN,
+            "The server still accepts RSA key exchange on TLS 1.2. Traffic negotiated that way can be "
+            "decrypted later if the server's private key ever leaks.",
+            penalty=4, severity="low",
+            fix="Allow only ECDHE cipher suites. nginx: ssl_ciphers ECDHE+AESGCM:ECDHE+CHACHA20; "
+                "ssl_prefer_server_ciphers on;",
+        ))
+    elif static_rsa is False:
+        findings.append(Finding(
+            "tls-fs", CAT, title, PASS,
+            "The server refuses key exchanges without forward secrecy.",
         ))
     return findings, summary
 

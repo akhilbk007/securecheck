@@ -12,12 +12,13 @@ SecureCheck is a passive website security scanner. It reads only what a site alr
 
 | Area | Checks |
 | --- | --- |
-| Encryption | HTTPS available, TLS 1.0 / 1.1 / 1.2 / 1.3 support, forward secrecy, certificate trust, expiry, key size and signature algorithm, HTTP to HTTPS redirect |
-| Browser protections | HSTS, Content Security Policy (including `unsafe-inline`, `unsafe-eval`, wildcards), clickjacking defence, `nosniff`, Referrer-Policy, Permissions-Policy, CORS origin reflection, server version disclosure |
+| Encryption | HTTPS available, TLS 1.0 / 1.1 / 1.2 / 1.3 support, forward-secret key exchange only, certificate trust, expiry, key size and signature algorithm, HTTP to HTTPS redirect |
+| Browser protections | HSTS, Content Security Policy from the header or a `<meta>` tag (including `unsafe-inline`, `unsafe-eval`, wildcards), clickjacking defence, `nosniff`, Referrer-Policy, Permissions-Policy, Cross-Origin-Opener-Policy, obsolete `X-XSS-Protection`, CORS origin reflection, server version disclosure |
 | Cookies | `Secure`, `HttpOnly`, `SameSite` on every cookie set |
-| Domain and email | SPF, DMARC, CAA, `security.txt` |
+| Page content | Third-party scripts and stylesheets without Subresource Integrity, mixed content and insecure form targets, outdated jQuery / Bootstrap / AngularJS versions, inventory of third-party script hosts |
+| Domain and email | SPF, DMARC, DNSSEC, CAA, MTA-STS, `security.txt` |
 
-Each finding carries a status, a severity, the raw evidence, a fix and a score penalty. The score starts at 100; a failed check costs its full penalty, a warning half. An untrusted certificate caps the score at 45 and missing HTTPS caps it at 30.
+Each finding carries a status, a severity, the raw evidence, a fix and a score penalty. The full report can be downloaded as a PDF or as JSON. The score starts at 100; a failed check costs its full penalty, a warning half. An untrusted certificate caps the score at 45 and missing HTTPS caps it at 30.
 
 ## The scanner is the interesting attack surface
 
@@ -33,7 +34,9 @@ A service that fetches URLs on behalf of strangers is a classic Server-Side Requ
 | Port scanning through the scanner | Ports 80 and 443 only | `app/netguard.py` |
 | Other URL schemes (`file://`, `gopher://`) and credentials in URLs | Rejected | `app/netguard.py` |
 | Stored or reflected XSS through hostile header values shown in the report | The front end never uses `innerHTML`; the page is served with `script-src 'self'` and no inline script | `static/app.js`, `app/main.py` |
-| Resource exhaustion | Per-address and global rate limits, a concurrency cap, 8 second timeouts, 64 KB body cap, five minute result cache | `app/main.py`, `app/fetch.py` |
+| Resource exhaustion | Per-address and global rate limits, a concurrency cap, 8 second timeouts, 512 KB body cap, five minute result cache | `app/main.py`, `app/fetch.py` |
+| Hostile values in the PDF report | The report is built only from the server's own scan result, never from data the client sends, and every value is escaped before it is placed | `app/report.py`, `app/main.py` |
+| Hostile page markup | Pages are parsed with the standard library parser, capped at 512 KB and 5,000 tags, and nothing in them is executed | `app/checks/content.py` |
 | Leaking internals in errors | Unexpected errors are logged server-side and replaced with a generic message | `app/main.py` |
 | Container compromise | Runs as a non-root user | `Dockerfile` |
 
@@ -80,7 +83,7 @@ Content-Type: application/json
 {"url": "example.com"}
 ```
 
-Returns the grade, score, TLS summary and the list of findings. Errors return `{"error": "..."}` with status 400 (target refused), 429 (rate limited) or 503 (busy).
+Returns the grade, score, TLS summary and the list of findings. `POST /api/report` takes the same body and returns the report as a PDF. Errors return `{"error": "..."}` with status 400 (target refused), 429 (rate limited) or 503 (busy).
 
 ## Deploy
 
@@ -117,12 +120,12 @@ Never set `SECURECHECK_ALLOW_PRIVATE` in production. It exists only so the test 
 - The per-address rate limit trusts the `X-Forwarded-For` header set by the hosting proxy. A client that can reach the app directly could spoof it; the global limit is the backstop.
 - Rate limits and the cache are in memory, so they are per instance.
 - SPF and DMARC are looked up by walking up the hostname instead of using the Public Suffix List.
+- Outdated libraries are recognised from script file names only, so bundled copies are missed.
 - Only the one page requested is examined. Headers can differ on other paths.
 
 ## Ideas for later
 
 - Cipher suite enumeration and OCSP stapling check
-- Subresource Integrity check on third-party scripts
 - Scheduled re-scans with Slack alerts when a grade drops
 - HSTS preload list lookup
 

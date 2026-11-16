@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecureCheck: website security check</title>
+  <meta name="description" content="Paste a web address and see how well the site protects its visitors: TLS version, certificate, security headers, cookies and email spoofing protection.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="wordmark" href="./">SecureCheck</a>
+    <nav>
+      <a href="https://github.com/akhilbk007/securecheck" id="source-link">Source on GitHub</a>
+      <a href="https://akhilkulal.in">Built by Akhil Kulal</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>How well does this site protect its visitors?</h1>
+      <p class="lede">Paste a web address. SecureCheck reads what the site already shows every browser and grades it from A+ to F, with the fix for each problem.</p>
+
+      <form id="scan-form" class="addressbar" novalidate>
+        <label for="url" class="sr-only">Web address</label>
+        <span class="scheme" aria-hidden="true">https://</span>
+        <input id="url" name="url" type="text" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" placeholder="example.com" maxlength="2048" required>
+        <button type="submit" id="scan-button">Scan site</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="intro" class="covers">
+      <h2>What gets checked</h2>
+      <dl>
+        <div>
+          <dt>Encryption</dt>
+          <dd>TLS versions offered, certificate trust, expiry and key strength, and whether plain HTTP redirects to HTTPS.</dd>
+        </div>
+        <div>
+          <dt>Browser protections</dt>
+          <dd>HSTS, Content Security Policy, clickjacking defence, CORS, and whether the server leaks its software version.</dd>
+        </div>
+        <div>
+          <dt>Cookies</dt>
+          <dd>Secure, HttpOnly and SameSite on every cookie the page sets.</dd>
+        </div>
+        <div>
+          <dt>Domain and email</dt>
+          <dd>SPF and DMARC against email spoofing, CAA records, and a security.txt contact.</dd>
+        </div>
+      </dl>
+      <p class="note">Every check is passive. The scanner sends a handful of ordinary requests, the same ones a browser sends, and never attempts to break in.</p>
+    </section>
+
+    <section id="report" class="report" hidden aria-labelledby="report-host">
+      <aside class="verdict">
+        <div class="stamp" id="stamp" role="img">
+          <span class="stamp-grade" id="grade"></span>
+          <span class="stamp-score" id="score"></span>
+        </div>
+        <h2 id="report-host"></h2>
+        <p id="report-meta" class="meta"></p>
+        <ul id="tally" class="tally"></ul>
+        <dl id="facts" class="facts"></dl>
+        <div class="actions">
+          <button type="button" id="copy-link" class="quiet">Copy link to this report</button>
+          <button type="button" id="download-json" class="quiet">Download JSON</button>
+        </div>
+      </aside>
+      <div class="ledger" id="ledger"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Scan only sites you own or are curious about as a visitor. Results describe public configuration at the moment of the scan and are not a penetration test.</p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

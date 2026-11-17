@@ -133,9 +133,9 @@
       fact(facts, "Versions accepted", on.join(", ").replace(/TLS /g, "") || "none");
     }
     if (tls.certificate) {
-      fact(facts, "Issued by", tls.certificate.issuer);
-      fact(facts, "Expires", tls.certificate.expires + " (" + tls.certificate.days_left + " days)");
-      fact(facts, "Key", tls.certificate.key);
+      fact(facts, "Certificate authority", tls.certificate.issuer);
+      fact(facts, "Certificate expires", tls.certificate.expires + " (" + tls.certificate.days_left + " days)");
+      fact(facts, "Certificate key", tls.certificate.key);
     }
 
     var note = document.getElementById("cert-note");
@@ -143,8 +143,8 @@
       var days = tls.certificate.days_left;
       var when = tls.certificate.expires_text || tls.certificate.expires;
       note.textContent = days < 0
-        ? "Certificate expired on " + when + "."
-        : "Certificate expires on " + when + ", in " + days + (days === 1 ? " day." : " days.");
+        ? "TLS certificate expired on " + when + "."
+        : "TLS certificate expires on " + when + ", in " + days + (days === 1 ? " day." : " days.");
       note.className = "cert-note " + (days < 14 ? "fail" : days < 30 ? "warn" : "pass");
       note.hidden = false;
     } else {

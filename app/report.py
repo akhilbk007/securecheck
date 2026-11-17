@@ -216,9 +216,9 @@ def _cert_strip(result: dict):
     when = cert.get("expires_text") or cert.get("expires")
     color = RED if days < 14 else AMBER if days < 30 else GREEN
     if days < 0:
-        text = f"<b>The certificate expired on {_t(when, 40)}.</b>"
+        text = f"<b>The TLS certificate expired on {_t(when, 40)}.</b>"
     else:
-        text = (f"<b>Certificate expires on {_t(when, 40)}</b>, in {days} day{'' if days == 1 else 's'}. "
+        text = (f"<b>TLS certificate expires on {_t(when, 40)}</b>, in {days} day{'' if days == 1 else 's'}. "
                 f"Issued by {_t(cert.get('issuer') or 'an unknown authority', 80)}.")
     strip = Table([["", Paragraph(text, BODY)]], colWidths=[1.6 * mm, WIDTH - 1.6 * mm])
     strip.setStyle(TableStyle([("BACKGROUND", (0, 0), (0, 0), colors.HexColor(color)),
@@ -362,7 +362,7 @@ def build_pdf(result: dict) -> bytes:
              ("Negotiated", f"{str(tls.get('negotiated', '')).replace('v', ' ')}, {tls.get('cipher', '')}"
               if tls.get("negotiated") else ""),
              ("TLS versions accepted", accepted if protocols else ""),
-             ("Certificate issuer", cert.get("issuer")),
+             ("Certificate authority", cert.get("issuer")),
              ("Certificate expires", f"{cert.get('expires')} ({cert.get('days_left')} days left)" if cert else ""),
              ("Certificate key", f"{cert.get('key', '')}, {str(cert.get('signature', '')).upper()}" if cert else "")]
     rows = [[Paragraph(_t(k), SMALL), Paragraph(_t(v, 200), CELL)] for k, v in facts if v]
